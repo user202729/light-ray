@@ -106,40 +106,40 @@ class CircularList<E>{ // linked list
 	}
 }
 
-// Represents a lattice point.
-final class Pointi implements Comparable<Pointi>{
+// Lattice point.
+final class LPoint implements Comparable<LPoint>{
 	final int x,y;
-	Pointi(int _x,int _y){x=_x ;y=_y ;}
+	LPoint(int _x,int _y){x=_x ;y=_y ;}
 
-	Pointi add(Pointi p){ return new Pointi(x+p.x,y+p.y); }
-	Pointi sub(Pointi p){ return new Pointi(x-p.x,y-p.y); }
-	Pointi mul(int a){ return new Pointi(x*a,y*a); }
-	Pointi shr(int a){ return new Pointi(x>>a,y>>a); }
+	LPoint add(LPoint p){ return new LPoint(x+p.x,y+p.y); }
+	LPoint sub(LPoint p){ return new LPoint(x-p.x,y-p.y); }
+	LPoint mul(int a){ return new LPoint(x*a,y*a); }
+	LPoint shr(int a){ return new LPoint(x>>a,y>>a); }
 
-	Pointi neg (){ return new Pointi(-x,-y); }
+	LPoint neg (){ return new LPoint(-x,-y); }
 	/// Rotate 90° clockwise, assuming +x is →, +y is ↓.
-	Pointi rt90(){ return new Pointi(-y, x); }
-	Pointi lt90(){ return new Pointi( y,-x); }
+	LPoint rt90(){ return new LPoint(-y, x); }
+	LPoint lt90(){ return new LPoint( y,-x); }
 
-	int dot  (Pointi p){ return x*p.x + y*p.y; }
+	int dot  (LPoint p){ return x*p.x + y*p.y; }
 	/// Magnitude of the resulting vector when interpret the two
 	/// points as vector in 3D space and take the cross product.
-	int cross(Pointi p){ return x*p.y - y*p.x; }
+	int cross(LPoint p){ return x*p.y - y*p.x; }
 
 	int norm(){ return x*x+y*y; } // dot with itself
-	double dist(Pointi p){ return Math.sqrt(sub(p).norm()); }
+	double dist(LPoint p){ return Math.sqrt(sub(p).norm()); }
 
 	/// Return the distance from this point to line AB.
-	double distToLine(Pointi a,Pointi b){
-		Pointi ab=b.sub(a);
+	double distToLine(LPoint a,LPoint b){
+		LPoint ab=b.sub(a);
 		int norm=ab.norm();
 		assert norm>0;
 		return Math.abs(sub(a).cross(ab)/Math.sqrt(norm));
 	}
 
 	/// Return the distance from this point to line segment AB.
-	double distToSegment(Pointi a,Pointi b){
-		Pointi ab=b.sub(a);
+	double distToSegment(LPoint a,LPoint b){
+		LPoint ab=b.sub(a);
 		if(sub(a).dot(ab)<=0)return dist(a);
 		if(sub(b).dot(ab)>=0)return dist(b);
 		return distToLine(a,b);
@@ -149,15 +149,15 @@ final class Pointi implements Comparable<Pointi>{
 	Point toPoint(){ return new Point(x,y); }
 
 	@Override
-	public int compareTo(Pointi p){
+	public int compareTo(LPoint p){
 		return x!=p.x?
 			Integer.compare(x,p.x):Integer.compare(y,p.y);
 	}
 
 	@Override
 	public boolean equals(Object o){
-		if(o==null||!(o instanceof Pointi))return false;
-		Pointi p=(Pointi)o;
+		if(o==null||!(o instanceof LPoint))return false;
+		LPoint p=(LPoint)o;
 		return x==p.x&&y==p.y;
 	}
 	@Override
@@ -279,18 +279,18 @@ public class Main{
 	static class Edge{
 		// CombinedEdge, but minimized.
 		// Remove information about intermediate points.
-		Pointi vertex;
+		LPoint vertex;
 		Color color;
-		Edge(Pointi v,Color c){
+		Edge(LPoint v,Color c){
 			vertex=v;color=c;
 		}
 	}
 
 	static class CombinedEdge{
 		// consisting of >=1 pixel edges.
-		List<Pointi> edges; // including first, excluding last coord.
+		List<LPoint> edges; // including first, excluding last coord.
 		Color color;
-		CombinedEdge(Pointi p){
+		CombinedEdge(LPoint p){
 			edges=new ArrayList<>();
 			edges.add(p);
 		}
@@ -312,7 +312,7 @@ public class Main{
 				continue findEdgeToMerge;
 			}
 
-			final Pointi A=node  .value.edges.get(0),
+			final LPoint A=node  .value.edges.get(0),
 				B=node.next.next.value.edges.get(0);
 			if(A.equals(B)){ // probably can also use ==
 				throw new RuntimeException(
@@ -321,12 +321,12 @@ public class Main{
 
 			// for performance reason, node.next.value.edges.get(0)
 			// should be tested first.
-			for(Pointi x:node.next.value.edges)
+			for(LPoint x:node.next.value.edges)
 				if(x.distToSegment(A,B)>tolerance){
 					node=node.next;
 					continue findEdgeToMerge;
 				}
-			for(Pointi x:node.value.edges)
+			for(LPoint x:node.value.edges)
 				if(x.distToSegment(A,B)>tolerance){
 					node=node.next;
 					continue findEdgeToMerge;
@@ -347,10 +347,10 @@ public class Main{
 		if(len!=q.computeLength())return false;
 		CircularList<CombinedEdge>.Node node=q.item;
 		for(int i=0;i<len;++i){
-			final Pointi
+			final LPoint
 				A=node.     value.edges.get(0),
 				B=node.next.value.edges.get(0);
-			for(Pointi x:node.value.edges)
+			for(LPoint x:node.value.edges)
 				if(x.distToSegment(A,B)>tolerance)return false;
 			node=node.next;
 		}
@@ -359,11 +359,11 @@ public class Main{
 
 
 	static void computePolygons(){
-		Pointi[] minPoint=new Pointi[nGroup];
+		LPoint[] minPoint=new LPoint[nGroup];
 		for(int x=0;x<X;++x)for(int y=0;y<Y;++y){
 			int i=groupOf[x][y];
 			if(i>=0&&minPoint[i]==null)
-				minPoint[i]=new Pointi(x,y);
+				minPoint[i]=new LPoint(x,y);
 		}
 
 		assert polygons==null;
@@ -373,14 +373,14 @@ public class Main{
 			CircularList<CombinedEdge> q;
 
 			// actual processing
-			Pointi position=minPoint[group],
-				direction=new Pointi(1,0);
+			LPoint position=minPoint[group],
+				direction=new LPoint(1,0);
 			q=new CircularList<>(new CombinedEdge(position));
 			CircularList<CombinedEdge>.Node node=q.item;
 
 			while(true){ // traverse the boundary
 				// save the pixel color
-				Pointi pixel=position.add(
+				LPoint pixel=position.add(
 					direction.add(direction.rt90()).shr(1)
 				);
 				assert groupOf[pixel.x][pixel.y]==group;
@@ -399,7 +399,7 @@ public class Main{
 				// rotate the direction
 				direction=direction.lt90();
 				while(true){
-					Pointi dirRT90=direction.rt90();
+					LPoint dirRT90=direction.rt90();
 					// the pixel the rotation will sweep over
 					pixel=position.add(
 						direction.add(dirRT90).shr(1)
