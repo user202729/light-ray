@@ -2,30 +2,74 @@ import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.awt.event.KeyEvent;
 import java.io.FileInputStream;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
-import javax.swing.JFrame;
-import javax.swing.JPanel;
-import java.util.Arrays;
-import java.util.List;
-import java.util.ArrayList;
+import javax.swing.*;
+import java.util.*;
 
+import static javax.swing.KeyStroke.getKeyStroke;
 import static java.util.Arrays.asList;
 import static java.lang.System.out;
 
-class Panel extends JPanel {
-	BufferedImage background;
+// My custom frame, with all components included.
+class Frame extends JFrame{
+	class Panel extends JPanel {
+		private double zoomFactor;
+		private BufferedImage background;
 
-	Panel(BufferedImage background){
-		this.background=background;
+		Panel(BufferedImage b){
+			zoomFactor=1;background=b;
+		}
+
+		void zoomBy(double factor){
+			assert factor>0;
+			zoomFactor*=factor;
+			repaint();
+		}
+		
+		@Override
+		protected void paintComponent(Graphics g){
+			super.paintComponent(g);
+			g.drawImage(background,0,0,
+				(int)(background.getWidth ()*zoomFactor),
+				(int)(background.getHeight()*zoomFactor),
+				null);
+		}
 	}
-	
-	@Override
-	protected void paintComponent(Graphics g){
-		g.drawImage(background,0,0,null);
+
+	Panel panel; // for ease of reference, this can be obtained
+	// with getContentPane().getComponents()
+
+	Frame(BufferedImage background){
+		panel=new Panel(background);
+		add(panel);
+
+		JMenuBar menuBar=new JMenuBar();
+		setJMenuBar(menuBar);
+
+		JMenu viewMenu=new JMenu("View");
+		viewMenu.setMnemonic(KeyEvent.VK_V);
+		menuBar.add(viewMenu);
+
+		JMenuItem zoomIn=new JMenuItem("Zoom in");
+		zoomIn.setMnemonic(KeyEvent.VK_I);
+		zoomIn.setAccelerator(getKeyStroke("ctrl EQUALS"));
+		zoomIn.addActionListener(e->panel.zoomBy(1.1));
+		viewMenu.add(zoomIn);
+
+		JMenuItem zoomOut=new JMenuItem("Zoom out");
+		zoomOut.setMnemonic(KeyEvent.VK_O);
+		zoomOut.setAccelerator(getKeyStroke("ctrl MINUS"));
+		zoomOut.addActionListener(e->panel.zoomBy(1/1.1));
+		viewMenu.add(zoomOut);
+
+		setSize(400,400); // not necessarily
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 }
+
 
 class CircularList<E>{ // linked list
 	// Should this extends AbstractSequentialList?
@@ -483,13 +527,7 @@ public class Main{
 		g.dispose();
 
 		// Create the window.
-		// Bottleneck 2: Loading JFrame takes ~0.6s
-		JFrame frame=new JFrame();
-		Panel panel=new Panel(image);
-		frame.add(panel);
-		frame.setSize(400,400);
-		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		// Bottleneck 3: This takes ~0.2s
+		Frame frame=new Frame(image);
 		frame.setVisible(true);
 
 	}
