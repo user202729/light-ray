@@ -4,6 +4,7 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.awt.event.KeyEvent;
+import java.awt.event.WindowEvent;
 import java.io.FileInputStream;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -238,6 +239,11 @@ class Panel extends JPanel {
 			0<=pos.y&&pos.y<=Y;
 	}
 
+	synchronized void advance(){
+		pos=pos.add(velo);
+		repaint();
+	}
+
 	synchronized void zoomBy(double factor){
 		assert factor>0;
 		zoomFactor*=factor;
@@ -252,20 +258,19 @@ class Panel extends JPanel {
 			(int)(Y*zoomFactor),
 			null);
 
-		final int ballRadius=3;
+		final double ballRadius=2;
 		g.setColor(Color.RED);
-		g.fillOval((int)pos.x-ballRadius,(int)pos.y-ballRadius,
-			2*ballRadius,2*ballRadius);
+		g.fillOval(
+			(int)((pos.x-ballRadius)*zoomFactor),
+			(int)((pos.y-ballRadius)*zoomFactor),
+			(int)(2*ballRadius*zoomFactor),
+			(int)(2*ballRadius*zoomFactor));
 	}
 }
 
 // My custom frame, with all components included.
 class Frame extends JFrame{
-	Panel panel; // for ease of reference, this can be obtained
-	// with getContentPane().getComponents()
-
-	Frame(BufferedImage background,Edge[][] polygons){
-		panel=new Panel(background,polygons);
+	Frame(Panel panel){
 		add(panel);
 
 		JMenuBar menuBar=new JMenuBar();
@@ -287,7 +292,7 @@ class Frame extends JFrame{
 		zoomOut.addActionListener(e->panel.zoomBy(1/1.1));
 		viewMenu.add(zoomOut);
 
-		setSize(400,400); // not necessarily
+		setSize(400,400);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
 }
@@ -558,18 +563,23 @@ public class Main{
 		g.dispose();
 
 		// Create the window.
-		Frame frame=new Frame(image,polygons);
+		Panel panel=new Panel(image,polygons);
+		Frame frame=new Frame(panel);
 		frame.setVisible(true);
 
-		while(true){
+		// Main loop
+		while(panel.inBound()){
 			try{
-				Thread.sleep(1000);
+				Thread.sleep(50);
 			}catch(InterruptedException e){
 				out.println("Thread interrupted");
 				break;
 			}
-			out.println("aaa");
+			panel.advance();
 		}
 
+		frame.setVisible(false);
+		frame.dispatchEvent(
+			new WindowEvent(frame,WindowEvent.WINDOW_CLOSING));
 	}
 }
