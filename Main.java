@@ -1,3 +1,4 @@
+import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -12,64 +13,6 @@ import java.util.*;
 import static javax.swing.KeyStroke.getKeyStroke;
 import static java.util.Arrays.asList;
 import static java.lang.System.out;
-
-// My custom frame, with all components included.
-class Frame extends JFrame{
-	class Panel extends JPanel {
-		private double zoomFactor;
-		private BufferedImage background;
-
-		Panel(BufferedImage b){
-			zoomFactor=1;background=b;
-		}
-
-		void zoomBy(double factor){
-			assert factor>0;
-			zoomFactor*=factor;
-			repaint();
-		}
-		
-		@Override
-		protected void paintComponent(Graphics g){
-			super.paintComponent(g);
-			g.drawImage(background,0,0,
-				(int)(background.getWidth ()*zoomFactor),
-				(int)(background.getHeight()*zoomFactor),
-				null);
-		}
-	}
-
-	Panel panel; // for ease of reference, this can be obtained
-	// with getContentPane().getComponents()
-
-	Frame(BufferedImage background){
-		panel=new Panel(background);
-		add(panel);
-
-		JMenuBar menuBar=new JMenuBar();
-		setJMenuBar(menuBar);
-
-		JMenu viewMenu=new JMenu("View");
-		viewMenu.setMnemonic(KeyEvent.VK_V);
-		menuBar.add(viewMenu);
-
-		JMenuItem zoomIn=new JMenuItem("Zoom in");
-		zoomIn.setMnemonic(KeyEvent.VK_I);
-		zoomIn.setAccelerator(getKeyStroke("ctrl EQUALS"));
-		zoomIn.addActionListener(e->panel.zoomBy(1.1));
-		viewMenu.add(zoomIn);
-
-		JMenuItem zoomOut=new JMenuItem("Zoom out");
-		zoomOut.setMnemonic(KeyEvent.VK_O);
-		zoomOut.setAccelerator(getKeyStroke("ctrl MINUS"));
-		zoomOut.addActionListener(e->panel.zoomBy(1/1.1));
-		viewMenu.add(zoomOut);
-
-		setSize(400,400); // not necessarily
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-	}
-}
-
 
 class CircularList<E>{ // linked list
 	// Should this extends AbstractSequentialList?
@@ -196,10 +139,22 @@ final class Point{
 		t=t.sub(b.mul(t.dot(b)/b.norm()));
 		return this.sub(t.mul(2));
 	}
+
+	/// Return {x,y} where a.mul(x).add(b.mul(y)) ~= this.
+	double[] decompose(Point a,Point b){
+		double denom=a.cross(b);
+		if(denom==0)
+			throw new RuntimeException("Attempt to decompose into"+
+				"two linearly dependent vectors: "+a+", "+b);
+		double ide=1/denom; // Inverse of DEnominator
+		return new double[]{this.cross(b)*ide,a.cross(this)*ide};
+	}
 }
 
+// =========================
+// Program-specific classes.
 
-enum Color{
+enum ColorAction{
 	Comment				(0x000000),
 	Background			(0xffffff),
 	Mirror				(0x808080),
@@ -214,7 +169,7 @@ enum Color{
 	Unused2				(0xff00dc);
 
 	public final int value;
-	Color(int value){this.value=value;}
+	ColorAction(int value){this.value=value;}
 
 	/// Input format: RGB. Return sum of squared distances.
 	static int colorDist(int a,int b){
@@ -230,19 +185,119 @@ enum Color{
 	static int makeBrighter(int rgb){
 		// this may be made more efficient by inlining 'brighter'
 		// source code, or implement something similar
-		return new java.awt.Color(rgb)
+		return new Color(rgb)
 			.brighter().brighter().brighter().getRGB();
 	}
 }
 
+class Edge{
+	// CombinedEdge, but minimized.
+	// Remove information about intermediate points.
+	LPoint vertex;
+	ColorAction color;
+	Edge(LPoint v,ColorAction c){
+		vertex=v;color=c;
+	}
+}
 
+class CombinedEdge{
+	// consisting of >=1 pixel edges.
+	List<LPoint> edges; // including first, excluding last coord.
+	ColorAction color;
+	CombinedEdge(LPoint p){
+		edges=new ArrayList<>();
+		edges.add(p);
+	}
+	void merge(CombinedEdge e){
+		assert color==e.color;
+		edges.addAll(e.edges);
+	}
+}
+
+class Panel extends JPanel {
+	private double zoomFactor;
+	private final BufferedImage background;
+	private final int X,Y;
+	private Point pos,velo; // position and velocity
+
+	// This will NOT be copied on constructor. So please do
+	// not modify it while this Panel instance exists.
+	private final Edge[][] polygons;
+
+	Panel(BufferedImage b,Edge[][] p){
+		zoomFactor=1;background=b;polygons=p;
+		pos=new Point(0,0);
+		velo=new Point(0.5,0.5);
+		X=b.getWidth();
+		Y=b.getHeight();
+	}
+
+	/// Check if (pos) is inside the bound.
+	boolean inBound(){
+		return 0<=pos.x&&pos.x<=X&&
+			0<=pos.y&&pos.y<=Y;
+	}
+
+	synchronized void zoomBy(double factor){
+		assert factor>0;
+		zoomFactor*=factor;
+		repaint();
+	}
+	
+	@Override
+	synchronized protected void paintComponent(Graphics g){
+		super.paintComponent(g);
+		g.drawImage(background,0,0,
+			(int)(X*zoomFactor),
+			(int)(Y*zoomFactor),
+			null);
+
+		final int ballRadius=3;
+		g.setColor(Color.RED);
+		g.fillOval((int)pos.x-ballRadius,(int)pos.y-ballRadius,
+			2*ballRadius,2*ballRadius);
+	}
+}
+
+// My custom frame, with all components included.
+class Frame extends JFrame{
+	Panel panel; // for ease of reference, this can be obtained
+	// with getContentPane().getComponents()
+
+	Frame(BufferedImage background,Edge[][] polygons){
+		panel=new Panel(background,polygons);
+		add(panel);
+
+		JMenuBar menuBar=new JMenuBar();
+		setJMenuBar(menuBar);
+
+		JMenu viewMenu=new JMenu("View");
+		viewMenu.setMnemonic(KeyEvent.VK_V);
+		menuBar.add(viewMenu);
+
+		JMenuItem zoomIn=new JMenuItem("Zoom in");
+		zoomIn.setMnemonic(KeyEvent.VK_I);
+		zoomIn.setAccelerator(getKeyStroke("ctrl EQUALS"));
+		zoomIn.addActionListener(e->panel.zoomBy(1.1));
+		viewMenu.add(zoomIn);
+
+		JMenuItem zoomOut=new JMenuItem("Zoom out");
+		zoomOut.setMnemonic(KeyEvent.VK_O);
+		zoomOut.setAccelerator(getKeyStroke("ctrl MINUS"));
+		zoomOut.addActionListener(e->panel.zoomBy(1/1.1));
+		viewMenu.add(zoomOut);
+
+		setSize(400,400); // not necessarily
+		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+	}
+}
 
 public class Main{
 	// default configuration. May be used for debugging.
 	static String suffix="bmp",path="/home/user202729/test.bmp";
 	static boolean antialias=false;
 
-	static Color[][] data;
+	static ColorAction[][] data;
 	static int X,Y;
 	static int[][] groupOf;
 	static int nGroup;
@@ -250,7 +305,7 @@ public class Main{
 	/// DFS to fill (groupOf) array. May need increasing stack size.
 	/// Value to fill: (nGroup)
 	static void fillGroup(int x,int y){
-		if(groupOf[x][y]>=0||data[x][y]==Color.Background)return;
+		if(groupOf[x][y]>=0||data[x][y]==ColorAction.Background)return;
 		groupOf[x][y]=nGroup;
 		if(x>0)  fillGroup(x-1,y  );
 		if(y>0)  fillGroup(x  ,y-1);
@@ -265,7 +320,7 @@ public class Main{
 		groupOf=new int[X][Y];
 		for(int x=0;x<X;++x)Arrays.fill(groupOf[x],-1);
 		for(int x=0;x<X;++x)for(int y=0;y<Y;++y){
-			if(groupOf[x][y]<0&&data[x][y]!=Color.Background){
+			if(groupOf[x][y]<0&&data[x][y]!=ColorAction.Background){
 				fillGroup(x,y); // with (nGroup)
 				++nGroup;
 			}
@@ -275,30 +330,6 @@ public class Main{
 	static Edge[][] polygons; // because arrays take less code
 	// Used in polygon simplification.
 	static final double tolerance=1;
-
-	static class Edge{
-		// CombinedEdge, but minimized.
-		// Remove information about intermediate points.
-		LPoint vertex;
-		Color color;
-		Edge(LPoint v,Color c){
-			vertex=v;color=c;
-		}
-	}
-
-	static class CombinedEdge{
-		// consisting of >=1 pixel edges.
-		List<LPoint> edges; // including first, excluding last coord.
-		Color color;
-		CombinedEdge(LPoint p){
-			edges=new ArrayList<>();
-			edges.add(p);
-		}
-		void merge(CombinedEdge e){
-			assert color==e.color;
-			edges.addAll(e.edges);
-		}
-	}
 
 	static int simplifyPolygon(CircularList<CombinedEdge> q){
 		int len=q.computeLength();
@@ -470,14 +501,14 @@ public class Main{
 		}
 
 		X=image.getWidth();Y=image.getHeight();
-		final Color[] colors=Color.values();
+		final ColorAction[] colors=ColorAction.values();
 
-		data=new Color[X][Y];
+		data=new ColorAction[X][Y];
 		for(int x=0;x<X;++x)for(int y=0;y<Y;++y){
 			int minDist=Integer.MAX_VALUE,minIndex=-1;
 			int color=image.getRGB(x,y);
 			for(int index=0;index<colors.length;++index){
-				int dist=Color.colorDist(color,colors[index].value);
+				int dist=ColorAction.colorDist(color,colors[index].value);
 				if(dist==minDist)
 					minIndex=-1;
 				else if(dist<minDist){
@@ -489,27 +520,27 @@ public class Main{
 				out.printf("Ambiguous color at (%d, %d)%n",x,y);
 				return;
 			}
-			final Color col=colors[minIndex];
-			if(col==Color.Unused||col==Color.Unused2){
+			final ColorAction col=colors[minIndex];
+			if(col==ColorAction.Unused||col==ColorAction.Unused2){
 				out.printf("Unused color at (%d, %d)%n",x,y);
 				return;
 			}
 			data[x][y]=col;
-			image.setRGB(x,y,Color.makeBrighter(col.value));
+			image.setRGB(x,y,ColorAction.makeBrighter(col.value));
 
 			// Remove comments (but doesn't change the background)
-			if(col==Color.Comment)data[x][y]=Color.Background;
+			if(col==ColorAction.Comment)data[x][y]=ColorAction.Background;
 		}
 
 		groupPixels();
 		for(int x=0;x<X;++x)for(int y=0;y<Y;++y)
-			if(data[x][y]==Color.Background)assert groupOf[x][y]<0;
+			if(data[x][y]==ColorAction.Background)assert groupOf[x][y]<0;
 
 		computePolygons();
 
 		// draw the polygons
 		Graphics2D g=image.createGraphics();
-		g.setColor(java.awt.Color.BLACK);
+		g.setColor(Color.BLACK);
 		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,antialias?
 			RenderingHints.VALUE_ANTIALIAS_ON:
 			RenderingHints.VALUE_ANTIALIAS_OFF);
@@ -527,8 +558,18 @@ public class Main{
 		g.dispose();
 
 		// Create the window.
-		Frame frame=new Frame(image);
+		Frame frame=new Frame(image,polygons);
 		frame.setVisible(true);
+
+		while(true){
+			try{
+				Thread.sleep(1000);
+			}catch(InterruptedException e){
+				out.println("Thread interrupted");
+				break;
+			}
+			out.println("aaa");
+		}
 
 	}
 }
