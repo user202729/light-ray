@@ -8,6 +8,9 @@ import java.awt.event.WindowEvent;
 import java.io.FileInputStream;
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
+import java.math.BigInteger;
+import java.util.function.UnaryOperator;
+import java.util.function.BinaryOperator;
 import javax.swing.*;
 import java.util.*;
 
@@ -215,6 +218,30 @@ class CombinedEdge{
 	void merge(CombinedEdge e){
 		assert color==e.color;
 		edges.addAll(e.edges);
+	}
+}
+
+class Memory{
+	static Scanner in=new Scanner(System.in);
+	ArrayList<BigInteger>[] blocksMem;
+	ArrayList<BigInteger> mainMem;
+
+	Memory(int nBlock){
+		blocksMem=new ArrayList[nBlock];
+	}
+
+	synchronized void applyFunction(UnaryOperator<BigInteger> fn){
+		int lastIndex=mainMem.size()-1;
+		mainMem.set(lastIndex,fn.apply(mainMem.get(lastIndex)));
+	}
+
+	synchronized void applyFunction(int block,BinaryOperator<BigInteger> fn){
+		int lastIndex=mainMem.size()-1;
+		ArrayList<BigInteger> blockMem=blocksMem[block];
+		mainMem.set(lastIndex,fn.apply(
+			mainMem.get(lastIndex),
+			blockMem.get(blockMem.size()-1)
+		));
 	}
 }
 
