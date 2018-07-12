@@ -71,7 +71,8 @@ final class LPoint implements Comparable<LPoint>{
 	int cross(LPoint p){ return x*p.y - y*p.x; }
 
 	int norm(){ return x*x+y*y; } // dot with itself
-	double dist(LPoint p){ return Math.sqrt(sub(p).norm()); }
+	double length(){ return Math.sqrt(norm()); }
+	double dist(LPoint p){ return sub(p).length(); }
 
 	/// Return the distance from this point to line AB.
 	double distToLine(LPoint a,LPoint b){
@@ -122,7 +123,8 @@ final class Point{
 	double cross(Point p){ return x*p.y - y*p.x; }
 
 	double norm(){ return x*x+y*y; } // dot with itself
-	double dist(Point p){ return Math.sqrt(sub(p).norm()); }
+	double length(){ return Math.sqrt(norm()); }
+	double dist(Point p){ return sub(p).length(); }
 
 	// it isn't really possible to compare two double
 
@@ -138,7 +140,8 @@ final class Point{
 	Point reflectOverLine(Point a,Point b){
 		Point t=sub(a);b=b.sub(a);
 		t=t.sub(b.mul(t.dot(b)/b.norm()));
-		return this.sub(t.mul(2));
+		t=this.sub(t.mul(2));
+		return t;
 	}
 
 	/// Return {x,y} where a.mul(x).add(b.mul(y)) ~= this.
@@ -240,7 +243,48 @@ class Panel extends JPanel {
 	}
 
 	synchronized void advance(){
-		pos=pos.add(velo);
+		final Point S=pos,
+			T=pos.add(velo);
+		/* Now find edges that intersect line segment ST (including
+		T, excluding S), and is as close to S as possible */
+		double minFactor=2;
+		Point A=null,B=null; // the edge is going to be AB
+
+		for(Edge[] polygon:polygons){
+			Edge edge_a=polygon[polygon.length-1];
+			Point a=edge_a.vertex.toPoint();
+			ColorAction color=edge_a.color;
+			for(Edge edge_b:polygon){
+				Point b=edge_b.vertex.toPoint();
+
+				double[] mn=a.sub(S).decompose(velo,a.sub(b));
+				// note that velo == vector(ST)
+
+				double m=mn[0],n=mn[1];
+				if(
+					0<m&&  // excluding S
+					m<=1&& // including T
+					0<=n&&n<=1 // including A and B
+				){
+					if(m<minFactor){
+						minFactor=m;
+						A=a;B=b;
+					}
+				}
+
+				// prepare value of (a) for next iteration
+				a=b;color=edge_b.color;
+			}
+		}
+
+		pos=T;
+		if(minFactor<1.5){
+			// reflect over the intersecting edge
+			pos=pos.reflectOverLine(A,B);
+			velo=pos.sub(S.reflectOverLine(A,B));
+			// note that (velo) represents a vector
+		}
+
 		repaint();
 	}
 
@@ -334,7 +378,7 @@ public class Main{
 
 	static Edge[][] polygons; // because arrays take less code
 	// Used in polygon simplification.
-	static final double tolerance=1;
+	static final double tolerance=2.;
 
 	static int simplifyPolygon(CircularList<CombinedEdge> q){
 		int len=q.computeLength();
