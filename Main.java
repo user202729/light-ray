@@ -162,18 +162,18 @@ final class Point{
 // Program-specific classes.
 
 enum ColorAction{
-	Comment				(0x000000),
-	Background			(0xffffff),
-	Mirror				(0x808080),
-	Pop					(0xff0000),
-	NegateOrDivide		(0xff6a00),
-	Swap				(0xffd800),
-	IncrementOrAdd		(0x00ffff),
-	Align				(0xb200ff),
-	Push				(0x0026ff),
+	Comment         	(0x000000),
+	Background      	(0xffffff),
+	Mirror          	(0x808080),
+	Pop             	(0xff0000),
+	NegateOrDivide  	(0xff6a00),
+	Swap            	(0xffd800),
+	IncrementOrAdd  	(0x00ffff),
+	Align           	(0xb200ff),
+	Push            	(0x0026ff),
 	DoubleOrMultiply	(0x00ff21),
-	Unused				(0x7f0000),
-	Unused2				(0xff00dc);
+	Unused          	(0x7f0000),
+	Unused2         	(0xff00dc);
 
 	public final int value;
 	ColorAction(int value){this.value=value;}
