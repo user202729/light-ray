@@ -224,6 +224,7 @@ class CombinedEdge{
 class Memory{
 	final ArrayList<BigInteger>[] blocksMem;
 	final ArrayList<BigInteger> mainMem;
+	static final Scanner in=new Scanner(System.in);
 
 	@SuppressWarnings("unchecked")
 	Memory(int nBlock){
@@ -234,17 +235,45 @@ class Memory{
 	}
 
 	synchronized void applyFunction(UnaryOperator<BigInteger> fn){
-		int lastIndex=mainMem.size()-1;
-		mainMem.set(lastIndex,fn.apply(mainMem.get(lastIndex)));
+		BigInteger result=fn.apply(getMainLast());
+		mainMem.set(mainMem.size()-1,result);
 	}
 
 	synchronized void applyFunction(int block,BinaryOperator<BigInteger> fn){
 		int lastIndex=mainMem.size()-1;
 		ArrayList<BigInteger> blockMem=blocksMem[block];
 		mainMem.set(lastIndex,fn.apply(
-			mainMem.get(lastIndex),
+			getMainLast(),
 			blockMem.get(blockMem.size()-1)
 		));
+	}
+
+	static final BigInteger NEGATIVE_ONE=BigInteger.valueOf(-1);
+	/**
+	 * Get last element of main memory, read from STDIN (and also
+	 * push the value from STDIN to the stack to the main memory)
+	 * if there isn't any. In case STDIN is exhaused, return -1.
+	 */
+	synchronized BigInteger getMainLast(){
+		if(mainMem.isEmpty()){
+			while(in.hasNextLine()){
+				if(in.hasNextBigInteger()){
+					BigInteger t=in.nextBigInteger();
+					mainMem.add(t);
+					return t;
+				}
+				in.next(".");
+			}
+			return NEGATIVE_ONE;
+		}
+		return mainMem.get(mainMem.size()-1);
+	}
+
+	// Get last element of block memory or 0.
+	synchronized BigInteger getBlockLast(int block){
+		ArrayList<BigInteger> blockMem=blocksMem[block];
+		if(blockMem.isEmpty())return BigInteger.ZERO;
+		return blockMem.get(blockMem.size()-1);
 	}
 }
 
@@ -269,9 +298,14 @@ class Panel extends JPanel {
 	}
 
 	/// Check if (pos) is inside the bound.
-	boolean inBound(){
+	synchronized boolean inBound(){
 		return 0<=pos.x&&pos.x<=X&&
 			0<=pos.y&&pos.y<=Y;
+	}
+
+	synchronized void printMainMem(){
+		for(BigInteger x:mem.mainMem)
+			out.println(x);
 	}
 
 	synchronized void advance(){
@@ -280,17 +314,17 @@ class Panel extends JPanel {
 		/* Now find edges that intersect line segment ST (including
 		T, excluding S), and is as close to S as possible */
 		double minFactor=2; // anything >1
-		int minBlock=-1,minIndex=-1;
+		int block=-1,index=-1;
 
-		for(int block=0;block<polygons.length;++block){
-			Edge[] polygon=polygons[block];
+		for(int block_=0;block_<polygons.length;++block_){
+			Edge[] polygon=polygons[block_];
 
 			Edge edge_a=polygon[0];
 			Point a=edge_a.vertex.toPoint();
 			ColorAction color=edge_a.color;
 
-			for(int index=polygon.length;index-->0;){
-				Point b=polygon[index].vertex.toPoint();
+			for(int index_=polygon.length;index_-->0;){
+				Point b=polygon[index_].vertex.toPoint();
 
 				double[] mn=a.sub(S).decompose(velo,a.sub(b));
 				// note that velo == vector(ST)
@@ -303,55 +337,76 @@ class Panel extends JPanel {
 				){
 					if(m<minFactor){
 						minFactor=m;
-						minBlock=block;minIndex=index;
+						block=block_;index=index_;
 					}
 				}
 
 				// prepare value of (a) for next iteration
-				a=b;color=polygon[index].color;
+				a=b;color=polygon[index_].color;
 			}
 		}
 
 		pos=T;
-		if(minBlock<0){
+		if(block<0){
 			repaint();
 			return;
 		}
 
-		final Edge[] polygon=polygons[minBlock];
-		final Point A=polygon[minIndex].vertex.toPoint(),
-		B=polygon[(minIndex+1)%polygon.length].vertex.toPoint();
+		final Edge[] polygon=polygons[block];
+		final Point A=polygon[index].vertex.toPoint(),
+		B=polygon[(index+1)%polygon.length].vertex.toPoint();
 
 		// reflect over the intersecting edge
 		pos=pos.reflectOverLine(A,B);
 		velo=pos.sub(S.reflectOverLine(A,B));
 		// note that (velo) represents a vector
 
-		final ColorAction color=polygon[minIndex].color;
-		switch(color){
+		final ArrayList<BigInteger>
+			mainMem=mem.mainMem,
+			blockMem=mem.blocksMem[block];
+		final int
+			mainLast=mainMem.size()-1,
+			blockLast=blockMem.size()-1;
+		
+		switch(polygon[index].color){
 		case Comment:
+			assert false: "Comments must have been filtered out";
 			break;
 		case Background:
+			assert false: "Is this even an edge....?";
 			break;
 		case Mirror:
 			break;
-		case Pop:
+		case Pop: // the IP pops from the block
+			mainMem.add(mem.getBlockLast(block));
+			blockMem.remove(blockLast);
 			break;
 		case NegateOrDivide:
+			mem.applyFunction(BigInteger::negate);
 			break;
 		case Swap:
+			final BigInteger t=mem.getMainLast();
+			mainMem.set(mainLast,mem.getBlockLast(block));
+			blockMem.set(blockLast,t);
 			break;
 		case IncrementOrAdd:
+			mem.applyFunction(BigInteger.ONE::add);
 			break;
 		case Align:
+			if(true)throw new UnsupportedOperationException();
 			break;
-		case Push:
+		case Push: // the IP pushes to the block
+			blockMem.add(mem.getMainLast());
+			mainMem.remove(mainLast);
 			break;
 		case DoubleOrMultiply:
+			mem.applyFunction(x->x.shiftLeft(1));
 			break;
 		case Unused:
+			assert false: "But this is unused... (1)";
 			break;
 		case Unused2:
+			assert false: "But this is unused... (2)";
 			break;
 		}
 
@@ -540,7 +595,8 @@ public class Main{
 				position=position.add(direction);
 
 				// check if we finished the cycle
-				if(position.equals(node.next.value.edges.get(0)))break;
+				if(position.equals(node.next.value.edges.get(0)))
+					break;
 
 				// add new position to (q)
 				node.addAfter(new CombinedEdge(position));
@@ -576,7 +632,8 @@ public class Main{
 		}
 	}
 
-	public static void main(String[] args){
+	public static void main(String[]args)
+		throws InterruptedException{
 
 		for(int i=1;i<args.length;++i){
 			String arg=args[i];
@@ -653,7 +710,8 @@ public class Main{
 
 		groupPixels();
 		for(int x=0;x<X;++x)for(int y=0;y<Y;++y)
-			if(data[x][y]==ColorAction.Background)assert groupOf[x][y]<0;
+			if(data[x][y]==ColorAction.Background)
+				assert groupOf[x][y]<0;
 
 		computePolygons();
 
@@ -683,14 +741,11 @@ public class Main{
 
 		// Main loop
 		while(panel.inBound()){
-			try{
-				Thread.sleep(50);
-			}catch(InterruptedException e){
-				out.println("Thread interrupted");
-				break;
-			}
+			Thread.sleep(50);
 			panel.advance();
 		}
+
+		panel.printMainMem();
 
 		frame.setVisible(false);
 		frame.dispatchEvent(
