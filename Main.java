@@ -222,12 +222,15 @@ class CombinedEdge{
 }
 
 class Memory{
-	static Scanner in=new Scanner(System.in);
-	ArrayList<BigInteger>[] blocksMem;
-	ArrayList<BigInteger> mainMem;
+	final ArrayList<BigInteger>[] blocksMem;
+	final ArrayList<BigInteger> mainMem;
 
+	@SuppressWarnings("unchecked")
 	Memory(int nBlock){
 		blocksMem=new ArrayList[nBlock];
+		for(int block=0;block<nBlock;++block)
+			blocksMem[block]=new ArrayList<>();
+		mainMem=new ArrayList<>();
 	}
 
 	synchronized void applyFunction(UnaryOperator<BigInteger> fn){
@@ -250,6 +253,7 @@ class Panel extends JPanel {
 	private final BufferedImage background;
 	private final int X,Y;
 	private Point pos,velo; // position and velocity
+	private final Memory mem;
 
 	// This will NOT be copied on constructor. So please do
 	// not modify it while this Panel instance exists.
@@ -257,6 +261,7 @@ class Panel extends JPanel {
 
 	Panel(BufferedImage b,Edge[][] p){
 		zoomFactor=1;background=b;polygons=p;
+		mem=new Memory(p.length);
 		pos=new Point(0,0);
 		velo=new Point(0.5,0.5);
 		X=b.getWidth();
@@ -274,15 +279,18 @@ class Panel extends JPanel {
 			T=pos.add(velo);
 		/* Now find edges that intersect line segment ST (including
 		T, excluding S), and is as close to S as possible */
-		double minFactor=2;
-		Point A=null,B=null; // the edge is going to be AB
+		double minFactor=2; // anything >1
+		int minBlock=-1,minIndex=-1;
 
-		for(Edge[] polygon:polygons){
-			Edge edge_a=polygon[polygon.length-1];
+		for(int block=0;block<polygons.length;++block){
+			Edge[] polygon=polygons[block];
+
+			Edge edge_a=polygon[0];
 			Point a=edge_a.vertex.toPoint();
 			ColorAction color=edge_a.color;
-			for(Edge edge_b:polygon){
-				Point b=edge_b.vertex.toPoint();
+
+			for(int index=polygon.length;index-->0;){
+				Point b=polygon[index].vertex.toPoint();
 
 				double[] mn=a.sub(S).decompose(velo,a.sub(b));
 				// note that velo == vector(ST)
@@ -295,21 +303,56 @@ class Panel extends JPanel {
 				){
 					if(m<minFactor){
 						minFactor=m;
-						A=a;B=b;
+						minBlock=block;minIndex=index;
 					}
 				}
 
 				// prepare value of (a) for next iteration
-				a=b;color=edge_b.color;
+				a=b;color=polygon[index].color;
 			}
 		}
 
 		pos=T;
-		if(minFactor<1.5){
-			// reflect over the intersecting edge
-			pos=pos.reflectOverLine(A,B);
-			velo=pos.sub(S.reflectOverLine(A,B));
-			// note that (velo) represents a vector
+		if(minBlock<0){
+			repaint();
+			return;
+		}
+
+		final Edge[] polygon=polygons[minBlock];
+		final Point A=polygon[minIndex].vertex.toPoint(),
+		B=polygon[(minIndex+1)%polygon.length].vertex.toPoint();
+
+		// reflect over the intersecting edge
+		pos=pos.reflectOverLine(A,B);
+		velo=pos.sub(S.reflectOverLine(A,B));
+		// note that (velo) represents a vector
+
+		final ColorAction color=polygon[minIndex].color;
+		switch(color){
+		case Comment:
+			break;
+		case Background:
+			break;
+		case Mirror:
+			break;
+		case Pop:
+			break;
+		case NegateOrDivide:
+			break;
+		case Swap:
+			break;
+		case IncrementOrAdd:
+			break;
+		case Align:
+			break;
+		case Push:
+			break;
+		case DoubleOrMultiply:
+			break;
+		case Unused:
+			break;
+		case Unused2:
+			break;
 		}
 
 		repaint();
