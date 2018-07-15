@@ -220,6 +220,11 @@ class CombinedEdge{
 		assert color==e.color;
 		edges.addAll(e.edges);
 	}
+
+	/// Returns the main vertex.
+	LPoint v(){
+		return edges.get(0);
+	}
 }
 
 class Memory{
@@ -547,14 +552,14 @@ public class Main{
 				continue findEdgeToMerge;
 			}
 
-			final LPoint A=node  .value.edges.get(0),
-				B=node.next.next.value.edges.get(0);
+			final LPoint A=node  .value.v(),
+				B=node.next.next.value.v();
 			if(A.equals(B)){ // probably can also use ==
 				throw new RuntimeException(
 					"Invalid polygon. Contains vertex "+A);
 			}
 
-			// for performance reason, node.next.value.edges.get(0)
+			// for performance reason, node.next.value.v()
 			// should be tested first.
 			for(LPoint x:node.next.value.edges)
 				if(x.distToSegment(A,B)>tolerance){
@@ -583,8 +588,8 @@ public class Main{
 		CircularList<CombinedEdge>.Node node=q.item;
 		for(int i=0;i<len;++i){
 			final LPoint
-				A=node.     value.edges.get(0),
-				B=node.next.value.edges.get(0);
+				A=node.     value.v(),
+				B=node.next.value.v();
 			for(LPoint x:node.value.edges)
 				if(x.distToSegment(A,B)>tolerance)return false;
 			node=node.next;
@@ -625,7 +630,7 @@ public class Main{
 				position=position.add(direction);
 
 				// check if we finished the cycle
-				if(position.equals(node.next.value.edges.get(0)))
+				if(position.equals(node.next.value.v()))
 					break;
 
 				// add new position to (q)
@@ -655,7 +660,7 @@ public class Main{
 			node=q.item;
 			for(int i=0;i<len;++i,node=node.next)
 				polygon[i]=new Edge(
-					node.value.edges.get(0),
+					node.value.v(),
 					node.value.color);
 
 			polygons[group]=polygon;
