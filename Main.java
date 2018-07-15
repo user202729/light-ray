@@ -162,21 +162,22 @@ final class Point{
 // Program-specific classes.
 
 enum ColorAction{
-	Comment         	(0x000000),
-	Background      	(0xffffff),
-	Mirror          	(0x808080),
-	Pop             	(0xff0000),
-	NegateOrDivide  	(0xff6a00),
-	Swap            	(0xffd800),
-	IncrementOrAdd  	(0x00ffff),
-	Align           	(0xb200ff),
-	Push            	(0x0026ff),
-	DoubleOrMultiply	(0x00ff21),
-	Modifier        	(0x7f0000),
-	Unused2         	(0xff00dc);
+	Comment         	(Color.BLACK),
+	Background      	(Color.WHITE),
+	Mirror          	(Color.GRAY),
+	Pop             	(Color.RED),
+	NegateOrDivide  	(Color.ORANGE),
+	Swap            	(Color.YELLOW),
+	IncrementOrAdd  	(Color.CYAN),
+	Align           	(0xb200ff), // purple
+	Push            	(Color.BLUE),
+	DoubleOrMultiply	(Color.GREEN),
+	Modifier        	(0x7f0000), // brown
+	Unused2         	(0xff00dc); // light purple
 
 	public final int value;
-	ColorAction(int value){this.value=value;}
+	ColorAction(int v){value=v;}
+	ColorAction(Color c){value=c.getRGB()&0xffffff;}
 
 	/// Input format: RGB. Return sum of squared distances.
 	static int colorDist(int a,int b){
@@ -662,8 +663,7 @@ public class Main{
 	}
 
 	public static void main(String[]args)
-		throws InterruptedException{
-
+	throws InterruptedException{
 		for(int i=1;i<args.length;++i){
 			String arg=args[i];
 			int j=arg.indexOf('=');
