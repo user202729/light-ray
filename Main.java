@@ -172,7 +172,7 @@ enum ColorAction{
 	Align           	(0xb200ff),
 	Push            	(0x0026ff),
 	DoubleOrMultiply	(0x00ff21),
-	Unused          	(0x7f0000),
+	Modifier        	(0x7f0000),
 	Unused2         	(0xff00dc);
 
 	public final int value;
@@ -402,8 +402,37 @@ class Panel extends JPanel {
 		case DoubleOrMultiply:
 			mem.applyFunction(x->x.shiftLeft(1));
 			break;
-		case Unused:
-			assert false: "But this is unused... (1)";
+		case Modifier:
+			int index_=index;
+			ColorAction pcolor;
+			do{ // find the first edge in clockwise order
+				++index_;
+				if(index_==index){
+					throw new RuntimeException("Modifier block?");
+				}
+				pcolor=polygon[index_].color;
+			}while(pcolor!=ColorAction.Modifier);
+			switch(pcolor){
+				case NegateOrDivide: // floor division
+					mem.applyFunction(block,(x,y)->{
+						BigInteger[] qr=x.divideAndRemainder(y);
+						// q*y+r==x ⇒ x/y==q+r/y
+						BigInteger q=qr[0],r=qr[1];
+						if(r.signum()*y.signum()<0)
+							q=q.subtract(BigInteger.ONE);
+						return q;
+					});
+					break;
+				case IncrementOrAdd:
+					mem.applyFunction(block,BigInteger::add);
+					break;
+				case DoubleOrMultiply:
+					mem.applyFunction(block,BigInteger::multiply);
+					break;
+				default:
+					throw new RuntimeException(String.format(
+						"Color %s cannot be modified",pcolor));
+			}
 			break;
 		case Unused2:
 			assert false: "But this is unused... (2)";
@@ -697,7 +726,7 @@ public class Main{
 				return;
 			}
 			final ColorAction col=colors[minIndex];
-			if(col==ColorAction.Unused||col==ColorAction.Unused2){
+			if(col==ColorAction.Unused2){
 				out.printf("Unused color at (%d, %d)%n",x,y);
 				return;
 			}
