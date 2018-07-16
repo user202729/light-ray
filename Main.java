@@ -490,6 +490,18 @@ class Frame extends JFrame{
 		togglePauseMenu.addActionListener(e->togglePause());
 		runMenu.add(togglePauseMenu);
 
+		JMenuItem incSpeed=new JMenuItem("Increase speed");
+		incSpeed.setMnemonic(KeyEvent.VK_I);
+		incSpeed.setAccelerator(getKeyStroke("ctrl CLOSE_BRACKET"));
+		incSpeed.addActionListener(e->changeDelayBy(1/1.3));
+		runMenu.add(incSpeed);
+
+		JMenuItem decSpeed=new JMenuItem("Decrease speed");
+		decSpeed.setMnemonic(KeyEvent.VK_D);
+		decSpeed.setAccelerator(getKeyStroke("ctrl OPEN_BRACKET"));
+		decSpeed.addActionListener(e->changeDelayBy(1.3));
+		runMenu.add(decSpeed);
+
 		JMenu viewMenu=new JMenu("View");
 		viewMenu.setMnemonic(KeyEvent.VK_V);
 		menuBar.add(viewMenu);
@@ -513,6 +525,7 @@ class Frame extends JFrame{
 	static final String PAUSE_TEXT="Pause",CONTINUE_TEXT="Continue";
 	JMenuItem togglePauseMenu;
 	private boolean paused=false;
+	final boolean paused(){return paused;}
 	synchronized void togglePause(){
 		if(paused){
 			paused=false;
@@ -524,7 +537,13 @@ class Frame extends JFrame{
 		}
 	}
 
-	final boolean paused(){return paused;}
+	/// The delay in millisecond between two consecutive frames.
+	private double delay=50;
+
+	// unfortunately double is 64 bit so sync is required.
+	// see https://stackoverflow.com/a/11459616
+	synchronized long getDelay(){return (long)delay;}
+	synchronized void changeDelayBy(double factor){delay*=factor;}
 }
 
 public class Main{
@@ -817,7 +836,7 @@ public class Main{
 
 		// Main loop
 		while(panel.inBound()){
-			Thread.sleep(50);
+			Thread.sleep(frame.getDelay());
 			synchronized(frame){
 				if(frame.paused())
 					frame.wait();
