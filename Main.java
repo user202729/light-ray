@@ -583,6 +583,11 @@ public class Main{
 		return len;
 	}
 
+	/**
+	 * Check for the validity of the polygon simplification
+	 * algorithm. If this returns {false}, there is a bug in the
+	 * simplifyPolygon function.
+	 */
 	static boolean validPolygon(CircularList<CombinedEdge>q,int len){
 		if(len!=q.computeLength())return false;
 		CircularList<CombinedEdge>.Node node=q.item;
@@ -715,22 +720,33 @@ public class Main{
 
 		data=new ColorAction[X][Y];
 		for(int x=0;x<X;++x)for(int y=0;y<Y;++y){
-			int minDist=Integer.MAX_VALUE,minIndex=-1;
 			int color=image.getRGB(x,y);
-			for(int index=0;index<colors.length;++index){
-				int dist=ColorAction.colorDist(color,colors[index].value);
-				if(dist==minDist)
-					minIndex=-1;
-				else if(dist<minDist){
-					minIndex=index;
-					minDist=dist;
+			int alpha=color>>>24;
+			final ColorAction col;
+
+			if(alpha==0){ // transparent
+				col=ColorAction.Background;
+			}else if(alpha==0xFF){ // opaque
+				int minDist=Integer.MAX_VALUE,minIndex=-1;
+				for(int index=0;index<colors.length;++index){
+					int dist=ColorAction.colorDist(color,colors[index].value);
+					if(dist==minDist)
+						minIndex=-1;
+					else if(dist<minDist){
+						minIndex=index;
+						minDist=dist;
+					}
 				}
+				if(minIndex<0){
+					out.printf("Ambiguous color at (%d, %d)%n",x,y);
+					return;
+				}
+				col=colors[minIndex];
+			}else{
+				throw new UnsupportedOperationException(
+				"Partially transparent pixel at ("+x+", "+y+")");
 			}
-			if(minIndex<0){
-				out.printf("Ambiguous color at (%d, %d)%n",x,y);
-				return;
-			}
-			final ColorAction col=colors[minIndex];
+
 			if(col==ColorAction.Unused2){
 				out.printf("Unused color at (%d, %d)%n",x,y);
 				return;
