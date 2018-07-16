@@ -480,6 +480,16 @@ class Frame extends JFrame{
 		JMenuBar menuBar=new JMenuBar();
 		setJMenuBar(menuBar);
 
+		JMenu runMenu=new JMenu("Run");
+		runMenu.setMnemonic(KeyEvent.VK_R);
+		menuBar.add(runMenu);
+
+		togglePauseMenu=new JMenuItem(PAUSE_TEXT);
+		togglePauseMenu.setMnemonic(KeyEvent.VK_E);
+		togglePauseMenu.setAccelerator(getKeyStroke("SPACE"));
+		togglePauseMenu.addActionListener(e->togglePause());
+		runMenu.add(togglePauseMenu);
+
 		JMenu viewMenu=new JMenu("View");
 		viewMenu.setMnemonic(KeyEvent.VK_V);
 		menuBar.add(viewMenu);
@@ -499,6 +509,22 @@ class Frame extends JFrame{
 		setSize(400,400);
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 	}
+
+	static final String PAUSE_TEXT="Pause",CONTINUE_TEXT="Continue";
+	JMenuItem togglePauseMenu;
+	private boolean paused=false;
+	synchronized void togglePause(){
+		if(paused){
+			paused=false;
+			togglePauseMenu.setText(PAUSE_TEXT);
+			notify();
+		}else{
+			paused=true;
+			togglePauseMenu.setText(CONTINUE_TEXT);
+		}
+	}
+
+	final boolean paused(){return paused;}
 }
 
 public class Main{
@@ -792,6 +818,10 @@ public class Main{
 		// Main loop
 		while(panel.inBound()){
 			Thread.sleep(50);
+			synchronized(frame){
+				if(frame.paused())
+					frame.wait();
+			}
 			panel.advance();
 		}
 
