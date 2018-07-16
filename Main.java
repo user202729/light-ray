@@ -147,12 +147,13 @@ final class Point{
 		return t;
 	}
 
-	/// Return {x,y} where a.mul(x).add(b.mul(y)) ~= this.
+	/**
+	 * Return {x,y} where a.mul(x).add(b.mul(y)) ~= this, or {null}
+	 * if vector {a} and {b} are parallel.
+	 */
 	double[] decompose(Point a,Point b){
 		double denom=a.cross(b);
-		if(denom==0)
-			throw new RuntimeException("Attempt to decompose into"+
-				"two linearly dependent vectors: "+a+", "+b);
+		if(denom==0)return null;
 		double ide=1/denom; // Inverse of DEnominator
 		return new double[]{this.cross(b)*ide,a.cross(this)*ide};
 	}
@@ -334,16 +335,17 @@ class Panel extends JPanel {
 
 				double[] mn=a.sub(S).decompose(velo,a.sub(b));
 				// note that velo == vector(ST)
-
-				double m=mn[0],n=mn[1];
-				if(
-					0<m&&  // excluding S
-					m<=1&& // including T
-					0<=n&&n<=1 // including A and B
-				){
-					if(m<minFactor){
-						minFactor=m;
-						block=block_;index=index_;
+				if(mn!=null){
+					double m=mn[0],n=mn[1];
+					if(
+						0<m&&  // excluding S
+						m<=1&& // including T
+						0<=n&&n<=1 // including A and B
+					){
+						if(m<minFactor){
+							minFactor=m;
+							block=block_;index=index_;
+						}
 					}
 				}
 
