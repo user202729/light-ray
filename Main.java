@@ -746,24 +746,25 @@ public class Main{
 
 	public static void main(String[]args)
 	throws InterruptedException{
-		for(int i=1;i<args.length;++i){
-			String arg=args[i];
+		for(String arg:args){
 			int j=arg.indexOf('=');
 			if(j<0){
 				out.printf("Invalid parameter: %s%n",arg);
 				return;
 			}
 			String key=arg.substring(0,j),value=arg.substring(j+1);
-			switch(arg.substring(0,j)){
+			switch(key){
 			case "suffix":
 				suffix=value;
 				break;
 			case "path":
 				path=value;
+				break;
 			case "antialias":
 				antialias=Boolean.valueOf(value);
+				break;
 			default:
-				out.printf("Unrecognized key: %s%n",arg);
+				out.printf("Unrecognized key: %s%n",key);
 			}
 		}
 
