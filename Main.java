@@ -294,8 +294,10 @@ class Panel extends JPanel {
 	// This will NOT be copied on constructor. So please do
 	// not modify it while this Panel instance exists.
 	private final Edge[][] polygons;
+	private final boolean antialias;
 
-	Panel(BufferedImage b,Edge[][] p){
+	Panel(BufferedImage b,Edge[][] p,boolean a){
+		antialias=a;
 		zoomFactor=1;background=b;polygons=p;
 		mem=new Memory(p.length);
 		pos=new Point(0,0);
@@ -456,13 +458,36 @@ class Panel extends JPanel {
 		repaint();
 	}
 	
+	/**
+	 * Draw the polygons specified in {polygons}, with zoom factor
+	 * {zoomFactor}, to the {Graphics g}.
+	 */
+	void drawPolygons(Graphics g){
+		g.setColor(Color.BLACK);
+		for(Edge[] polygon:polygons){
+			int len=polygon.length;
+			int[] xs=new int[len],ys=new int[len];
+			for(int i=0;i<len;++i){
+				xs[i]=(int)(polygon[i].vertex.x*zoomFactor);
+				ys[i]=(int)(polygon[i].vertex.y*zoomFactor);
+			}
+			g.drawPolygon(xs,ys,len);
+		}
+	}
+
 	@Override
-	synchronized protected void paintComponent(Graphics g){
-		super.paintComponent(g);
+	synchronized protected void paintComponent(Graphics g_){
+		super.paintComponent(g_);
+
+		Graphics2D g=(Graphics2D)g_;
+		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,antialias?
+			RenderingHints.VALUE_ANTIALIAS_ON:
+			RenderingHints.VALUE_ANTIALIAS_OFF);
 		g.drawImage(background,0,0,
 			(int)(X*zoomFactor),
 			(int)(Y*zoomFactor),
 			null);
+		drawPolygons(g);
 
 		final double ballRadius=2;
 		g.setColor(Color.RED);
@@ -812,27 +837,8 @@ public class Main{
 
 		computePolygons();
 
-		// draw the polygons
-		Graphics2D g=image.createGraphics();
-		g.setColor(Color.BLACK);
-		g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,antialias?
-			RenderingHints.VALUE_ANTIALIAS_ON:
-			RenderingHints.VALUE_ANTIALIAS_OFF);
-		for(int group=0;group<nGroup;++group){
-			Edge[] polygon=polygons[group];
-
-			int len=polygon.length;
-			int[] xs=new int[len],ys=new int[len];
-			for(int i=0;i<len;++i){
-				xs[i]=polygon[i].vertex.x;
-				ys[i]=polygon[i].vertex.y;
-			}
-			g.drawPolygon(xs,ys,len);
-		}
-		g.dispose();
-
 		// Create the window.
-		Panel panel=new Panel(image,polygons);
+		Panel panel=new Panel(image,polygons,antialias);
 		Frame frame=new Frame(panel);
 		frame.setVisible(true);
 
@@ -851,5 +857,5 @@ public class Main{
 		frame.setVisible(false);
 		frame.dispatchEvent(
 			new WindowEvent(frame,WindowEvent.WINDOW_CLOSING));
-	}
+		}
 }
